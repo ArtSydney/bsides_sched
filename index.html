@@ -764,9 +764,15 @@ function emptyState(c) {
   const fixes = [];
   if (rooms.length) fixes.push(`<button class="btn ghost" type="button" data-act="clearrooms">Show all rooms</button>`);
   if (mode !== "all") fixes.push(`<button class="btn ghost" type="button" data-mode="all">Show everyone</button>`);
-  const why = rooms.length && mode !== "all" ? "your room filter and view" : rooms.length ? "your room filter" : mode === "mine" ? "your stars" : "your group's picks";
-  return `<div class="empty"><h2>Nothing here</h2><p>Nothing matches ${why} ${view === "now" ? "for the rest of today" : "on this day"}.</p>${fixes.join(" ")}</div>`;
+  const why = rooms.length && mode !== "all" ? "your room filter and view" : rooms.length ? "your room filter" : mode === "mine" ? "your stars" : mode === "group" ? "your group's picks" : "";
+  const when = view === "now" ? "for the rest of today" : "on this day";
+  const msg = why ? `Nothing matches ${why} ${when}.` : `Nothing else is on ${when === "on this day" ? "this day" : "today"}.`;
+  return `<div class="empty"><h2>Nothing here</h2><p>${msg}</p>${fixes.join(" ")}</div>`;
 }
+
+// When the last non-break session finishes. Worked out from the data so
+// schedule changes on the day don't break the "That's a wrap" message.
+const lastEnd = () => Math.max(0, ...sessions.filter(s => !s.isBreak).map(s => s.end));
 
 function renderNow(c) {
   const { t } = c, dk = dayOf(t), di = DAYS.indexOf(dk);
@@ -782,15 +788,21 @@ function renderNow(c) {
   const later = sessions.filter(s => !s.isBreak && !s.long && s.start > t && visible(s, c));
   const today = later.filter(s => s.day === dk);
   if (today.length) {
+    // Only look a short way ahead: the next hour, or 15 min past the earliest
+    // upcoming start if that's later. Stops evening events sitting here all day.
+    const horizon = Math.max(t + 60 * 60000, today[0].start + 15 * 60000);
     const seen = new Set(), next = [];
-    for (const s of today) if (!seen.has(s.room)) { seen.add(s.room); next.push(s); }
+    for (const s of today) {
+      if (s.start > horizon) break;                 // list is sorted by start time
+      if (!seen.has(s.room)) { seen.add(s.room); next.push(s); }
+    }
     h += `<h2 class="sec">Up next</h2>` + next.map(s => card(s, c, { soon: true })).join("");
   } else if (!talks.length) {
     const first = later[0];
     if (first) {
       const slot = later.filter(s => s.start - first.start < 5 * 60000);
       h += `<h2 class="sec">Next up, ${esc(fShort.format(first.start))} at ${hm(first.start)}</h2>` + slot.map(s => card(s, c)).join("");
-    } else if (t > Date.parse("2026-09-26T17:00:00+10:00") && mode === "all" && !rooms.length) {
+    } else if (t >= lastEnd()) {
       h += `<div class="empty"><h2>That's a wrap</h2><p>BSides Canberra 2026 is over. Your stars are still in Schedule.</p></div>`;
     } else if (!longLive.length) {
       h += emptyState(c);
