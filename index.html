@@ -1,0 +1,867 @@
+<!doctype html>
+<html lang="en-AU">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#121629">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>BSides CBR 2026</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23121629'/%3E%3Ccircle cx='16' cy='16' r='7' fill='%23f5b83d'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&display=swap" rel="stylesheet">
+<style>
+/* ---------- Design tokens ---------- */
+:root{
+  --bg:#121629; --surface:#1a1f3b; --surface2:#232a4f; --line:#2f3763;
+  --text:#efebe1; --muted:#a0a5c2; --live:#f5b83d; --live-ink:#2a1d00; --ok:#6ad39a;
+  --r-sm:8px; --r-md:14px;
+  --display:"Bricolage Grotesque", ui-rounded, system-ui, -apple-system, sans-serif;
+  --body:"Atkinson Hyperlegible", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--text);font:16px/1.45 var(--body);-webkit-text-size-adjust:100%;-webkit-tap-highlight-color:transparent}
+button{font:inherit;color:inherit;cursor:pointer}
+:focus-visible{outline:2px solid var(--live);outline-offset:2px}
+.muted{color:var(--muted)}
+[hidden]{display:none!important}
+
+/* ---------- Sticky chrome: header, day tabs, room pills ---------- */
+.chrome{position:sticky;top:0;z-index:20;background:var(--bg);border-bottom:1px solid var(--line)}
+.top{display:flex;align-items:center;gap:10px;padding:calc(env(safe-area-inset-top,0px) + 10px) 16px 10px;max-width:720px;margin:0 auto}
+.brand{font:800 20px/1 var(--display);letter-spacing:-.01em;margin:0}
+.brand span{font-weight:500;color:var(--muted)}
+.status{margin-left:auto;display:flex;align-items:center;gap:6px;background:none;border:1px solid var(--line);border-radius:999px;padding:5px 11px;font-size:12.5px;color:var(--muted);white-space:nowrap}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--muted);flex:none}
+.dot.ok{background:var(--ok)} .dot.warn{background:var(--live)}
+.days{display:flex;gap:6px;padding:0 16px 10px;max-width:720px;margin:0 auto}
+.day{flex:1;min-height:40px;border-radius:10px;border:1px solid var(--line);background:none;color:var(--muted);font-weight:700;font-size:14px}
+.day[aria-pressed="true"]{background:var(--surface2);color:var(--text);border-color:var(--surface2)}
+.pills{display:flex;gap:8px;overflow-x:auto;padding:0 16px 10px;scrollbar-width:none;max-width:720px;margin:0 auto}
+.pills::-webkit-scrollbar{display:none}
+.pill{flex:none;min-height:36px;padding:0 14px;border-radius:999px;border:1px solid var(--line);background:none;color:var(--muted);font-size:14px;font-weight:700;display:flex;align-items:center;gap:6px}
+.pill[aria-pressed="true"]{background:var(--text);color:var(--bg);border-color:var(--text)}
+.pill.starpill[aria-pressed="true"]{background:var(--live);color:var(--live-ink);border-color:var(--live)}
+.pill svg{width:15px;height:15px}
+
+/* ---------- Layout ---------- */
+main{padding:12px 16px calc(96px + env(safe-area-inset-bottom,0px));max-width:720px;margin:0 auto}
+nav.tabs{position:fixed;left:0;right:0;bottom:0;z-index:30;display:flex;background:rgba(18,22,41,.95);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom,0px)}
+nav.tabs button{flex:1;min-height:58px;background:none;border:0;color:var(--muted);font-size:12.5px;font-weight:700;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px}
+nav.tabs button[aria-current="page"]{color:var(--text)}
+nav.tabs button[aria-current="page"] svg{color:var(--live)}
+nav.tabs svg{width:22px;height:22px}
+
+/* ---------- Now view: the clock is the one loud element ---------- */
+.clock{font:800 clamp(72px,24vw,120px)/.88 var(--display);letter-spacing:-.045em;font-variant-numeric:tabular-nums;margin:10px 0 6px}
+.today{color:var(--muted);margin:0 0 18px}
+.banner{background:var(--surface2);border-radius:var(--r-md);padding:11px 14px;margin:0 0 14px;font-weight:700}
+.sec{font:700 16px/1.2 var(--display);color:var(--muted);margin:22px 0 10px}
+
+/* ---------- Session cards ---------- */
+.card{display:flex;background:var(--surface);border-radius:var(--r-md);margin:0 0 8px;border:1px solid transparent}
+.card.live{border-color:var(--live)}
+.card.past{opacity:.5}
+.card-main{flex:1;min-width:0;padding:12px 0 12px 14px;cursor:pointer}
+.meta{display:flex;flex-wrap:wrap;gap:4px 10px;font-size:13px;color:var(--muted)}
+.meta .room{color:var(--text);font-weight:700}
+.meta .soon{color:var(--live);font-weight:700}
+.card h3{font:700 17px/1.25 var(--display);margin:4px 0 3px;overflow-wrap:anywhere}
+.who{margin:0;color:var(--muted);font-size:14px}
+.progress{height:4px;background:var(--line);border-radius:4px;margin-top:10px;overflow:hidden}
+.progress i{display:block;height:100%;background:var(--live);border-radius:4px}
+.star{flex:none;width:52px;background:none;border:0;color:var(--muted);display:grid;place-items:center}
+.star svg{width:24px;height:24px}
+.star[aria-pressed="true"]{color:var(--live)}
+.badges{display:flex;flex-wrap:wrap;gap:4px;margin-top:8px}
+.badge{width:26px;height:26px;border-radius:50%;font:700 11px/26px var(--body);text-align:center;color:#15172a;flex:none}
+.badge.more{background:var(--surface2);color:var(--text)}
+.slot{font:800 22px/1 var(--display);font-variant-numeric:tabular-nums;letter-spacing:-.02em;margin:22px 0 10px;scroll-margin-top:170px}
+.slot:first-of-type{margin-top:8px}
+.brk{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:14px;margin:18px 0}
+.brk::before,.brk::after{content:"";flex:1;height:1px;background:var(--line)}
+
+/* ---------- All day strip ---------- */
+details.allday{background:var(--surface);border-radius:var(--r-md);margin:0 0 14px;overflow:hidden}
+details.allday summary{list-style:none;display:flex;align-items:center;gap:10px;padding:13px 14px;cursor:pointer;font:700 16px var(--display)}
+details.allday summary::-webkit-details-marker{display:none}
+details.allday summary .count{margin-left:auto;font:400 13px var(--body);color:var(--muted)}
+details.allday summary svg{width:18px;height:18px;transition:transform .2s}
+details.allday[open] summary svg{transform:rotate(180deg)}
+.row{display:flex;border-top:1px solid var(--line)}
+.row .card-main{padding:10px 0 10px 14px}
+.row h3{font:700 15px/1.25 var(--display);margin:3px 0 0}
+.row.live h3::before{content:"";display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--live);margin-right:7px;vertical-align:1px}
+.row .star{width:48px}
+
+/* ---------- Group view ---------- */
+.panel{background:var(--surface);border-radius:var(--r-md);padding:16px;margin:0 0 14px}
+.panel h2{font:800 22px/1.15 var(--display);margin:0 0 8px}
+.panel p{margin:0 0 12px}
+label.field{display:block;font-size:14px;color:var(--muted);margin:0 0 12px}
+label.field input{display:block;width:100%;margin-top:6px;min-height:46px;border-radius:12px;border:1px solid var(--line);background:var(--bg);color:var(--text);padding:0 14px;font:16px var(--body)}
+.btn{min-height:48px;border-radius:12px;border:0;padding:0 18px;font-weight:700;font-size:16px;background:var(--text);color:var(--bg);width:100%;margin:0 0 8px}
+.btn.ghost{background:none;color:var(--text);border:1px solid var(--line)}
+.btn.warm{background:var(--live);color:var(--live-ink)}
+.members{list-style:none;margin:0 0 14px;padding:0}
+.members li{display:flex;align-items:center;gap:10px;padding:8px 0;border-top:1px solid var(--line)}
+.members li:first-child{border-top:0}
+.members .n{flex:1}
+.members .c{color:var(--muted);font-size:14px}
+.empty{text-align:center;padding:36px 12px;color:var(--muted)}
+.empty h2{font:800 22px var(--display);color:var(--text);margin:0 0 6px}
+.empty .btn{width:auto;margin-top:12px}
+
+/* ---------- Sheet dialog ---------- */
+dialog.sheet{border:0;padding:0;margin:auto 0 0;width:100%;max-width:100%;max-height:88dvh;background:var(--surface);color:var(--text);border-radius:20px 20px 0 0}
+dialog.sheet::backdrop{background:rgba(6,8,18,.65)}
+.sheet .inner{padding:18px 18px calc(24px + env(safe-area-inset-bottom,0px));overflow-y:auto;max-height:88dvh}
+.sheet .x{float:right;width:40px;height:40px;border-radius:50%;border:1px solid var(--line);background:none;font-size:20px;line-height:1;margin:-4px -4px 0 8px}
+.sheet h2{font:800 24px/1.15 var(--display);margin:6px 0 6px;overflow-wrap:anywhere}
+.sheet h3{font:700 16px var(--display);margin:20px 0 6px}
+.sheet .body p{margin:0 0 10px;max-width:68ch}
+.sheet a{color:var(--live)}
+.going{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:12px 0 4px;color:var(--muted);font-size:14px}
+@media (min-width:720px){dialog.sheet{margin:auto;max-width:640px;border-radius:20px}}
+@media (prefers-reduced-motion:no-preference){
+  dialog.sheet[open]{animation:up .22s ease-out}
+  @keyframes up{from{transform:translateY(24px);opacity:0}to{transform:none;opacity:1}}
+}
+.toast{position:fixed;left:50%;bottom:calc(76px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--text);color:var(--bg);padding:10px 16px;border-radius:12px;font-weight:700;font-size:14px;z-index:50;max-width:calc(100% - 32px);text-align:center;opacity:0;pointer-events:none;transition:opacity .2s}
+.toast.show{opacity:1}
+</style>
+</head>
+<body>
+<div class="chrome">
+  <div class="top">
+    <h1 class="brand">BSides CBR <span>2026</span></h1>
+    <button class="status" id="status" type="button"><i class="dot"></i><span>Loading</span></button>
+  </div>
+  <div class="days" id="days" hidden></div>
+  <div class="pills" id="pills"></div>
+</div>
+
+<main id="view"></main>
+
+<nav class="tabs" aria-label="Views">
+  <button type="button" data-view="now"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Now</button>
+  <button type="button" data-view="schedule"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>Schedule</button>
+  <button type="button" data-view="group"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.5 3.4-5.5 6.5-5.5s5.7 2 6.5 5.5"/><circle cx="17" cy="9" r="2.5"/><path d="M17 14.5c2.3 0 4 1.5 4.6 4"/></svg>Group</button>
+</nav>
+
+<dialog class="sheet" id="detail"><div class="inner" id="detailInner"></div></dialog>
+<dialog class="sheet" id="join"><div class="inner">
+  <button class="x" type="button" data-close aria-label="Close">×</button>
+  <h2>Join the group</h2>
+  <p class="muted">Your friends will see your name as initials on the talks you bookmark.</p>
+  <label class="field">Your name<input id="joinName" maxlength="24" autocomplete="nickname" enterkeyhint="done"></label>
+  <button class="btn warm" type="button" id="joinGo">Join group</button>
+  <button class="btn ghost" type="button" data-close>Not now</button>
+</div></dialog>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<noscript><p style="padding:16px">This app needs JavaScript turned on.</p></noscript>
+
+<script type="module">
+/* =====================================================================
+   CONFIG
+   The Firebase web config is not a secret. Access control lives in the
+   Realtime Database rules (see README).
+   ===================================================================== */
+const FIREBASE = {
+  apiKey: "AIzaSyAtVwttE7fy_L-5duOc6jVt-UxhrU-7vIs",
+  authDomain: "bsides2026-b2551.firebaseapp.com",
+  databaseURL: "https://bsides2026-b2551-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "bsides2026-b2551",
+  storageBucket: "bsides2026-b2551.firebasestorage.app",
+  messagingSenderId: "779284731482",
+  appId: "1:779284731482:web:2cd90f3a651d145a882a63"
+};
+const FB_VER = "10.12.2";
+const PRETALX = "https://cfp.bsidescbr.com.au/bsides-canberra-2026";
+// Tried in order. The first is the full export (abstracts and bios);
+// the second is the widget feed pretalx serves for embedding on other sites.
+const LIVE_URLS = [`${PRETALX}/schedule/export/schedule.json`, `${PRETALX}/schedule/widgets/schedule.json`];
+const REFRESH_MS = 10 * 60 * 1000;
+const LONG_MIN = 120;                       // sessions this long go in the All day strip
+const TZ = "Australia/Sydney";              // Canberra uses Sydney time
+const DAYS = ["2026-09-24", "2026-09-25", "2026-09-26"];
+
+// Room order and short pill labels. Unknown rooms from live data are appended.
+const ROOMS = [
+  ["Main Track","Main"], ["Off-Main Track","Off-Main"], ["Exhibition Hall","Exhibition Hall"],
+  ["Murray-Fitzroy Room","Murray-Fitzroy"], ["Careers Village","Careers"], ["Derwent Room","Derwent"],
+  ["Locksport Village","Locksport"], ["Locksport Village - Physical Challenge","Physical Challenge"],
+  ["Hardware Village","Hardware"], ["Hardware Village - OT Stands","OT Stands"], ["Off-Site","Off-site"]
+];
+const ROOM_ORDER = ROOMS.map(r => r[0]);
+const SHORT = Object.fromEntries(ROOMS);
+
+/* =====================================================================
+   TIME HELPERS
+   Everything displays in Canberra time regardless of the phone's zone.
+   Add ?now=2026-09-24T11:10 to the URL to test as if it's that moment.
+   ===================================================================== */
+const fHM = new Intl.DateTimeFormat("en-AU", { timeZone: TZ, hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
+const fDay = new Intl.DateTimeFormat("en-CA", { timeZone: TZ, year: "numeric", month: "2-digit", day: "2-digit" });
+const fLong = new Intl.DateTimeFormat("en-AU", { timeZone: TZ, weekday: "long", day: "numeric", month: "long" });
+const fShort = new Intl.DateTimeFormat("en-AU", { timeZone: TZ, weekday: "short", day: "numeric", month: "short" });
+const hm = ms => fHM.format(ms);
+const dayOf = ms => fDay.format(ms);
+const override = (() => {
+  const v = new URLSearchParams(location.search).get("now");
+  const t = v ? Date.parse(`${v}${v.length === 16 ? ":00" : ""}+10:00`) : NaN;
+  return Number.isFinite(t) ? { at: t, loaded: Date.now() } : null;
+})();
+const now = () => override ? override.at + (Date.now() - override.loaded) : Date.now();
+
+/* =====================================================================
+   SMALL UTILITIES
+   ===================================================================== */
+const $ = s => document.querySelector(s);
+const esc = v => String(v ?? "").replace(/[&<>"']/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]));
+const slug = s => String(s).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+const store = {
+  get(k, d) { try { const v = localStorage.getItem("bsc." + k); return v == null ? d : JSON.parse(v); } catch { return d; } },
+  set(k, v) { try { localStorage.setItem("bsc." + k, JSON.stringify(v)); } catch {} }
+};
+function rid(n) {
+  const a = "abcdefghjkmnpqrstuvwxyz23456789", b = new Uint8Array(n);
+  crypto.getRandomValues(b);
+  return Array.from(b, x => a[x % a.length]).join("");
+}
+let toastTimer;
+function toast(msg) {
+  const t = $("#toast"); t.textContent = msg; t.classList.add("show");
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove("show"), 2800);
+}
+const STAR = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.8l2.8 5.9 6.4.8-4.7 4.4 1.2 6.4L12 17.2l-5.7 3.1 1.2-6.4-4.7-4.4 6.4-.8z"/></svg>';
+const STAR_O = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M12 2.8l2.8 5.9 6.4.8-4.7 4.4 1.2 6.4L12 17.2l-5.7 3.1 1.2-6.4-4.7-4.4 6.4-.8z"/></svg>';
+const CHEV = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg>';
+
+/* =====================================================================
+   SESSION MODEL
+   A bookmark key is day + start time + room, e.g. "0924-1000-main-track".
+   The snapshot has no pretalx IDs, so this is what lets bookmarks made
+   offline line up with live data later.
+   ===================================================================== */
+const BREAK_RE = /^(new )?break$|^lunch$/i;
+function mk(o) {
+  const day = dayOf(o.start);
+  const s = { abstract: "", desc: "", bios: [], url: "", speakers: [], ...o, day };
+  s.title = String(s.title || "Untitled").trim();
+  s.isBreak = o.isBreak ?? BREAK_RE.test(s.title);
+  s.long = !s.isBreak && (s.end - s.start) >= LONG_MIN * 60000;
+  s.key = `${day.slice(5, 7)}${day.slice(8, 10)}-${hm(s.start).replace(":", "")}-${slug(s.room)}`;
+  return s;
+}
+
+/* Offline snapshot, captured from pretalx on 23 Sep 2026. Times are Canberra time.
+   Titles cut short by the source are marked with an ellipsis; the live feed fills them in.
+   Format: day|start|end|room index|title|speakers|b (b = break) */
+const SNAP_ROWS = `
+1|09:00|09:10|0|Opening Ceremony||
+1|09:10|09:50|0|KEYNOTE: Thai Duong & Bruce Dang|Thai Duong, Bruce Dang|
+1|09:50|10:00|0|Break||b
+1|10:00|10:55|0|Troubleshooting to SYSTEM: Local Privilege Escalation in Windows Diagnostics|Ben Wilson|
+1|11:00|11:55|0|Viral Vulnerabilities: Unpacking Copy.Fail and related Linux Kernel bugs|Angus|
+1|12:00|12:25|0|Novel Router Em…|Kendo|
+1|12:30|13:30|0|Lunch||b
+1|13:30|14:25|0|Azul: How to build “good” malware analysis platforms|James L|
+1|14:30|14:55|0|Let It Sync In|Dylan Bradl…|
+1|15:00|15:15|0|Break||b
+1|15:15|16:10|0|Password MisManagers: Hunting for Authentication Bypasses in Enterprise Pass…|Aidan Stansfield|
+1|16:15|17:10|0|Unlimited Exploitation of Signed Windows Drivers|Christopher Vel…|
+1|10:00|10:55|1|Testing Second-Order Prompt Injection Across AI Agent Deployments|Gaurav Vikash|
+1|11:00|11:55|1|How to hack a quantum system|Rajiv Shah|
+1|12:00|12:25|1|Ares: decompili…|Avery Artem…|
+1|13:30|14:25|1|AIxploit: Reliable Prompt Injection Exploits Against Database-Enabled AI Agents|Sean|
+1|14:30|15:05|1|Tearing Down a DPRK-Linked mac…|Tonmoy Jitu|
+1|15:15|16:10|1|Whaling on mobile apps with Leviathan|Luke Symons|
+1|16:15|17:10|1|Attacking Passkeys: Offensive Tooling and Implementation Vulnerabilities|Josh|
+1|10:00|14:00|2|Speedrun CTF Qualifiers|toasterpwn|
+1|14:00|16:30|2|Speedrun CTF Finale|toasterpwn|
+1|10:00|17:00|3|From Copilot to Commander: Building Agentic AI for Security Investigations|Sindre Breda, L…|
+1|10:00|16:30|4|Careers Village|Ricki Burke|
+1|10:00|17:00|5|Black Bag "TERMINAL MISALIGNMENT" - Day 1|Australian Information Security Academy|
+1|10:00|17:00|6|Locksport (Day 1)|Volunteers|
+1|10:00|16:00|8|Hardware Village (Day One)|Volunteers|
+1|10:00|16:00|9|OT / ICS Security Day 1|Gagan Singh The…|
+1|17:30|19:00|8|HackerChix Networking|BSides Canberra|
+2|09:05|09:40|0|KEYNOTE: Keep Calm. Hack On.|Renaud Feil|
+2|09:40|09:50|0|Break||b
+2|10:00|10:55|0|Doppelganger - Weaponizing CVE-2026-23066 at ZeroDay.Cloud|Faraz|
+2|11:00|11:55|0|Fatal Errors: Forensics Pitfalls in the "Mushroom Murders" Case Study|Zoran Iliev|
+2|12:00|12:25|0|Chasing Shadows…|Rick de Jag…|
+2|12:30|13:30|0|Lunch||b
+2|13:30|13:55|0|yeaaaaaaaaaaaaa…|filsy|
+2|14:00|14:55|0|From Padding Oracle to Shell: Unauthenticated RCE in Telerik UI for ASP.NET|Marcio Almeida|
+2|15:00|15:15|0|Break||b
+2|15:15|16:10|0|Time Crisis: Exploiting time-based padding oracle vulnerabilities using Timeless …|Justin Steven|
+2|16:15|17:10|0|Headless Hunter - Automated exploitation of headless Chrome using V8 n-days|Daniel Cooper|
+2|10:00|10:55|1|WebKit Archaeology: Finding Treasure in the Past|George Dan|
+2|11:00|11:55|1|Find My... And Yours: Exploiting Tracker Ecosystems To Track Individua…|Carter Smith|
+2|12:00|12:25|1|Hooked: Trackin…|JasonTrapp|
+2|13:30|13:55|1|Reverse Enginee…|Luke Wurst|
+2|14:00|14:55|1|Watch Your Language: A Multi-Lingual Approach to Bypassing Email Filters|Sarah Lam|
+2|15:15|16:10|1|Inside of an Android|Aaron|
+2|16:15|16:40|1|Bark to the Fut…|Chewhacker|
+2|16:45|17:05|1|From Dream Jobs…|Sohan Lokula|
+2|10:00|17:00|2|Capture-the-Flag (Day One)|skateboarding d…|
+2|09:00|13:00|3|Kubernetes Capture the Flag|Mario Weigel|
+2|13:30|16:30|3|Escalating XSS into session hijacking in modern SSO ecosystems|Animesh Acharya|
+2|09:00|17:00|5|Black Bag "TERMINAL MISALIGNMENT" - Day 2|Australian Information Security Academy|
+2|09:00|16:00|6|Locksport (Day 2)|Volunteers|
+2|09:30|16:00|7|Black Box Zero - Physical Challenge Box|Nathan Cobbald …|
+2|09:00|16:00|8|Hardware Village (Day Two)|Volunteers|
+2|09:00|16:00|9|OT / ICS Security Day 2|Gagan Singh The…|
+2|18:00|23:00|10|Friday Night Networking Event|BSides Canberra|
+3|09:05|09:40|0|KEYNOTE: Professor Richard Buckland|Richard Buckland|
+3|09:45|10:00|0|Break||b
+3|10:00|10:55|0|javascript:pwn() - A Field Guide to Hacking ServiceNow|Paul Alkemade|
+3|11:00|11:55|0|IOChargeRCE: From Bluetooth to Contactor|Brendan Scarvell|
+3|12:00|12:25|0|Waffling Around…|Aeriana Law…|
+3|12:30|13:30|0|Lunch||b
+3|13:30|13:55|0|Finding vibe le…|"Alex"|
+3|14:00|14:55|0|Exploiting the Microsoft 365 Substrate: How their OAuth Clients Became an MFA Bypass A…|Rawson Wade|
+3|15:00|15:15|0|Break||b
+3|15:15|16:00|0|Building an Autonomous N-day Exploit Generation Pipe…|Valentina Palmi…|
+3|16:00|16:40|0|Closing Ceremony|Kylie McDevitt, …|
+3|10:00|10:55|1|You Get a C2! And YOU Get a C2!: The democratisation of sophisticated Command & Contr…|Joseph Ganter, …|
+3|11:00|11:25|1|Malicious Entra…|Sam Brazier…|
+3|11:30|11:55|1|Venting Steam: …|Mike Vriese…|
+3|12:00|12:25|1|Identity Is the…|Maple|
+3|13:30|13:55|1|API Key Attribu…|Luke Marsha…|
+3|14:00|14:55|1|Just spoof the government?|Ben™|
+3|09:00|15:00|2|Capture-the-Flag (Day Two)|skateboarding d…|
+3|09:00|15:30|3|Software Supply Chain Threat Intelligence: Hands-On Training for SecOps and Threat Hunting Teams|Paul McCarty|
+3|09:00|15:00|5|Black Bag "TERMINAL MISALIGNMENT" - Day 3|Australian Information Security Academy|
+3|09:00|15:30|6|Locksport (Day 3)|Volunteers|
+3|09:00|15:30|8|Hardware Village (Day Three)|Volunteers|
+3|09:00|15:30|9|OT / ICS Security Day 3|Sanam Makadia, …|
+`;
+const SNAP = SNAP_ROWS.trim().split("\n").map(line => {
+  const [d, s, e, r, title, sp, f] = line.split("|");
+  const day = DAYS[+d - 1];
+  return mk({
+    start: Date.parse(`${day}T${s}:00+10:00`), end: Date.parse(`${day}T${e}:00+10:00`),
+    room: ROOMS[+r][0], title, speakers: sp ? sp.split(", ") : [], isBreak: f === "b",
+    url: `${PRETALX}/schedule/`
+  });
+});
+
+/* =====================================================================
+   LIVE DATA PARSERS (pretalx)
+   Two shapes are handled so either endpoint works.
+   ===================================================================== */
+const txt = v => typeof v === "string" ? v : (v && (v.en || Object.values(v)[0])) || "";
+const okUrl = u => /^https:\/\//.test(u || "") ? u : "";
+
+function parseFrab(j) {       // /schedule/export/schedule.json
+  const days = j?.schedule?.conference?.days;
+  if (!Array.isArray(days)) return null;
+  const out = [];
+  for (const d of days) for (const [room, evs] of Object.entries(d.rooms || {})) for (const e of evs || []) {
+    const start = Date.parse(e.date);
+    const [h, m] = String(e.duration || "0:0").split(":").map(Number);
+    if (!Number.isFinite(start)) continue;
+    const people = (e.persons || []).map(p => ({ name: p.public_name || p.name || "", bio: p.biography || "" })).filter(p => p.name);
+    out.push(mk({
+      start, end: start + ((h || 0) * 60 + (m || 0)) * 60000, room: e.room || room, title: e.title,
+      speakers: people.map(p => p.name), bios: people.filter(p => p.bio),
+      abstract: e.abstract || "", desc: e.description || "", url: okUrl(e.url), code: e.code || e.guid || ""
+    }));
+  }
+  return out;
+}
+
+function parseWidget(j) {     // /schedule/widgets/schedule.json
+  if (!Array.isArray(j?.talks)) return null;
+  const rooms = new Map((j.rooms || []).map(r => [r.id, txt(r.name)]));
+  const spk = new Map((j.speakers || []).map(s => [s.code, s]));
+  return j.talks.filter(t => t.start && t.room != null).map(t => {
+    const start = Date.parse(t.start);
+    const end = Date.parse(t.end) || start + (t.duration || 0) * 60000;
+    const sp = (t.speakers || []).map(c => spk.get(c)).filter(Boolean);
+    return mk({
+      start, end, room: rooms.get(t.room) || String(t.room), title: txt(t.title),
+      speakers: sp.map(s => s.name), bios: sp.filter(s => s.biography).map(s => ({ name: s.name, bio: txt(s.biography) })),
+      abstract: txt(t.abstract), desc: txt(t.description), url: t.code ? `${PRETALX}/talk/${t.code}/` : "", code: t.code || ""
+    });
+  }).filter(s => Number.isFinite(s.start));
+}
+
+/* =====================================================================
+   STATE
+   ===================================================================== */
+let sessions = [], byKey = new Map(), resolveCache = new Map();
+let source = { kind: "snapshot", at: null };
+let view = store.get("view", "now");
+let rooms = store.get("rooms", []);          // [] means all rooms
+let starredOnly = store.get("starred", false);
+let allDayOpen = store.get("allday", false);   // collapsed by default so talks lead
+let mine = store.get("mine", {});            // { bookmarkKey: true }
+let myName = store.get("name", "");
+let groupId = store.get("group", null);
+let group = { members: {}, bookmarks: {} };
+let fb = null, fbInitP = null, fbError = false, connected = false, unwatch = null;
+const me = store.get("me", null) || (() => { const id = rid(12); store.set("me", id); return id; })();
+let day = DAYS.includes(dayOf(now())) ? dayOf(now()) : DAYS[0];
+
+function setSessions(list, src) {
+  const order = r => { const i = ROOM_ORDER.indexOf(r); return i < 0 ? 99 : i; };
+  sessions = list.slice().sort((a, b) => a.start - b.start || order(a.room) - order(b.room));
+  byKey = new Map(sessions.map(s => [s.key, s]));
+  resolveCache.clear();
+  source = src;
+  render();
+}
+
+/* Map a stored bookmark key to a current session. Exact match first,
+   then the nearest session in the same room and day within 20 minutes,
+   so a bookmark survives small time corrections between snapshot and live. */
+function resolve(k) {
+  if (byKey.has(k)) return k;
+  if (resolveCache.has(k)) return resolveCache.get(k);
+  let hit = null;
+  const m = /^(\d{4})-(\d{2})(\d{2})-(.+)$/.exec(k);
+  if (m) {
+    const mins = +m[2] * 60 + +m[3]; let best = 21;
+    for (const s of sessions) {
+      if (s.isBreak || s.key.slice(0, 4) !== m[1] || slug(s.room) !== m[4]) continue;
+      const [h, mm] = hm(s.start).split(":").map(Number);
+      const diff = Math.abs(h * 60 + mm - mins);
+      if (diff < best) { best = diff; hit = s.key; }
+    }
+  }
+  resolveCache.set(k, hit);
+  return hit;
+}
+const mineSet = () => new Set(Object.keys(mine).map(resolve).filter(Boolean));
+
+/* Friends' bookmarks indexed by session key (excluding me; my star shows mine). */
+function friendIndex() {
+  const idx = new Map();
+  for (const [id, marks] of Object.entries(group.bookmarks || {})) {
+    if (id === me || !group.members?.[id]) continue;
+    for (const k of Object.keys(marks || {})) {
+      const r = resolve(k); if (!r) continue;
+      if (!idx.has(r)) idx.set(r, new Set());
+      idx.get(r).add(id);
+    }
+  }
+  return idx;
+}
+
+/* =====================================================================
+   SCHEDULE LOADING: live, then device cache, then embedded snapshot
+   ===================================================================== */
+async function loadLive(manual) {
+  for (const url of LIVE_URLS) {
+    try {
+      const ctl = new AbortController(); const timer = setTimeout(() => ctl.abort(), 9000);
+      const r = await fetch(url, { signal: ctl.signal, cache: "no-store" });
+      clearTimeout(timer);
+      if (!r.ok) continue;
+      const j = await r.json();
+      let list = parseFrab(j) || parseWidget(j);
+      if (!list || list.filter(s => !s.isBreak).length < 20) continue;   // reject partial feeds
+      // Breaks come from the snapshot so they look the same whichever feed loaded.
+      list = list.filter(s => !s.isBreak).concat(SNAP.filter(s => s.isBreak));
+      const at = Date.now();
+      store.set("cache", { at, list });
+      setSessions(list, { kind: "live", at });
+      if (manual) toast("Schedule updated");
+      return true;
+    } catch { /* CORS, offline, or bad JSON: try the next source */ }
+  }
+  if (manual) toast(source.kind === "cache" ? "Couldn't reach pretalx. Showing your saved copy." : "Couldn't reach pretalx. Showing the offline copy.");
+  return false;
+}
+
+/* =====================================================================
+   FIREBASE (group bookmarks)
+   Loaded lazily so the schedule works even if Google's CDN is unreachable.
+   Data: groups/{groupId}/members/{memberId} = { name, t }
+         groups/{groupId}/bookmarks/{memberId}/{bookmarkKey} = true
+   ===================================================================== */
+async function fbInit() {
+  if (fb) return fb;
+  if (fbInitP) return fbInitP;
+  fbInitP = (async () => {
+    const base = `https://www.gstatic.com/firebasejs/${FB_VER}`;
+    const [app, db] = await Promise.all([import(`${base}/firebase-app.js`), import(`${base}/firebase-database.js`)]);
+    const inst = db.getDatabase(app.initializeApp(FIREBASE));
+    fb = { ...db, db: inst, r: p => db.ref(inst, p) };
+    fbError = false;
+    db.onValue(fb.r(".info/connected"), s => { connected = !!s.val(); renderChrome(); if (view === "group") renderView(); });
+    return fb;
+  })().catch(e => { fbError = true; fbInitP = null; console.warn("Firebase load failed", e); render(); throw e; });
+  return fbInitP;
+}
+
+function watchGroup() {
+  if (unwatch) { unwatch(); unwatch = null; }
+  if (!groupId || !fb) return;
+  unwatch = fb.onValue(fb.r(`groups/${groupId}`), snap => {
+    const v = snap.val() || {};
+    group = { members: v.members || {}, bookmarks: v.bookmarks || {} };
+    render();
+  }, err => { console.warn(err); toast("Couldn't read the group. Check the database rules."); });
+}
+
+async function syncMe() {
+  // Push my name and full bookmark set. Replacing the whole node keeps it tidy.
+  if (!groupId || !fb) return;
+  await fb.set(fb.r(`groups/${groupId}/members/${me}`), { name: myName, t: Date.now() });
+  await fb.set(fb.r(`groups/${groupId}/bookmarks/${me}`), Object.keys(mine).length ? mine : null);
+}
+
+async function connectGroup() {
+  if (!groupId) return;
+  try { await fbInit(); watchGroup(); await syncMe(); render(); }
+  catch { render(); }
+}
+
+async function joinGroup(gid, name) {
+  name = name.trim().slice(0, 24);
+  if (!name) { toast("Add your name first"); return false; }
+  if (groupId && groupId !== gid) await leaveGroup(true);
+  myName = name; store.set("name", name);
+  groupId = gid; store.set("group", gid);
+  await connectGroup();
+  return true;
+}
+
+async function leaveGroup(quiet) {
+  const gid = groupId;
+  if (unwatch) { unwatch(); unwatch = null; }
+  groupId = null; store.set("group", null);
+  group = { members: {}, bookmarks: {} };
+  if (fb && gid) {
+    try { await fb.remove(fb.r(`groups/${gid}/members/${me}`)); await fb.remove(fb.r(`groups/${gid}/bookmarks/${me}`)); } catch {}
+  }
+  if (!quiet) toast("You've left the group. Your stars stay on this phone.");
+  render();
+}
+
+function toggleStar(key) {
+  const s = byKey.get(key); if (!s) return;
+  const on = mineSet().has(key);
+  if (on) {
+    for (const k of Object.keys(mine)) if (resolve(k) === key) {
+      delete mine[k];
+      if (groupId && fb) fb.remove(fb.r(`groups/${groupId}/bookmarks/${me}/${k}`)).catch(() => {});
+    }
+  } else {
+    mine[key] = true;
+    if (groupId && fb) fb.set(fb.r(`groups/${groupId}/bookmarks/${me}/${key}`), true).catch(() => {});
+  }
+  store.set("mine", mine);
+  render();
+  if ($("#detail").open && $("#detail").dataset.key === key) openDetail(key);
+}
+
+/* =====================================================================
+   RENDERING
+   ===================================================================== */
+const PALETTE = ["#7fd1ae", "#f59fb0", "#8fb8ff", "#f5c96b", "#c9a6ff", "#ff9f6b", "#6fd6e8", "#d8e27a"];
+function colourFor(id) { let h = 0; for (const c of id) h = (h * 31 + c.charCodeAt(0)) >>> 0; return PALETTE[h % PALETTE.length]; }
+function initials(name) {
+  const w = String(name || "?").trim().split(/\s+/).filter(Boolean);
+  return (w.length > 1 ? w[0][0] + w[1][0] : (w[0] || "?").slice(0, 2)).toUpperCase();
+}
+function badge(id) {
+  const n = group.members?.[id]?.name || "?";
+  return `<span class="badge" style="background:${colourFor(id)}" title="${esc(n)}" aria-label="${esc(n)}">${esc(initials(n))}</span>`;
+}
+function badgesFor(key, fi) {
+  const ids = [...(fi.get(key) || [])];
+  if (!ids.length) return "";
+  const shown = ids.slice(0, 5).map(badge).join("");
+  const more = ids.length > 5 ? `<span class="badge more">+${ids.length - 5}</span>` : "";
+  return `<div class="badges">${shown}${more}</div>`;
+}
+
+const roomOn = r => !rooms.length || rooms.includes(r);
+function visible(s, ms) {
+  if (s.isBreak) return !starredOnly;
+  return roomOn(s.room) && (!starredOnly || ms.has(s.key));
+}
+function whenText(start, t) {
+  const mins = Math.round((start - t) / 60000);
+  if (dayOf(start) === dayOf(t) && mins >= 0 && mins < 60) return `in ${mins} min`;
+  return dayOf(start) === dayOf(t) ? `at ${hm(start)}` : `${fShort.format(start)} at ${hm(start)}`;
+}
+
+function card(s, t, ms, fi, opts = {}) {
+  const live = s.start <= t && t < s.end, past = t >= s.end;
+  const on = ms.has(s.key);
+  const pct = live ? Math.min(100, Math.round((t - s.start) / (s.end - s.start) * 100)) : 0;
+  const timing = opts.soon
+    ? `<span class="soon">${esc(whenText(s.start, t))}</span>`
+    : live ? `<span>ends ${hm(s.end)}</span>` : `<span>${hm(s.start)} to ${hm(s.end)}</span>`;
+  return `<article class="card${live ? " live" : ""}${past ? " past" : ""}">
+    <div class="card-main" role="button" tabindex="0" data-open="${s.key}">
+      <div class="meta"><span class="room">${esc(SHORT[s.room] || s.room)}</span>${timing}</div>
+      <h3>${esc(s.title)}</h3>
+      ${s.speakers.length ? `<p class="who">${esc(s.speakers.join(", "))}</p>` : ""}
+      ${badgesFor(s.key, fi)}
+      ${live && opts.progress ? `<div class="progress" aria-hidden="true"><i style="width:${pct}%"></i></div>` : ""}
+    </div>
+    <button class="star" type="button" data-star="${s.key}" aria-pressed="${on}" aria-label="${on ? "Remove bookmark" : "Bookmark"}: ${esc(s.title)}">${on ? STAR : STAR_O}</button>
+  </article>`;
+}
+
+function allDay(list, t, ms, fi) {
+  if (!list.length) return "";
+  const liveCount = list.filter(s => s.start <= t && t < s.end).length;
+  const rows = list.map(s => {
+    const live = s.start <= t && t < s.end, on = ms.has(s.key);
+    return `<div class="row${live ? " live" : ""}">
+      <div class="card-main" role="button" tabindex="0" data-open="${s.key}">
+        <div class="meta"><span class="room">${esc(SHORT[s.room] || s.room)}</span><span>${hm(s.start)} to ${hm(s.end)}</span></div>
+        <h3>${esc(s.title)}</h3>${badgesFor(s.key, fi)}
+      </div>
+      <button class="star" type="button" data-star="${s.key}" aria-pressed="${on}" aria-label="${on ? "Remove bookmark" : "Bookmark"}: ${esc(s.title)}">${on ? STAR : STAR_O}</button>
+    </div>`;
+  }).join("");
+  const count = liveCount ? `${liveCount} on now` : `${list.length} today`;
+  return `<details class="allday"${allDayOpen ? " open" : ""}><summary>All day<span class="count">${count}</span>${CHEV}</summary>${rows}</details>`;
+}
+
+function emptyFiltered(msg) {
+  return `<div class="empty"><h2>${esc(msg)}</h2><p>Your room or star filters are hiding everything here.</p><button class="btn ghost" type="button" data-act="clearfilters">Show all rooms</button></div>`;
+}
+
+function renderNow() {
+  const t = now(), dk = dayOf(t), ms = mineSet(), fi = friendIndex();
+  const di = DAYS.indexOf(dk);
+  let h = `<p class="clock">${hm(t)}</p><p class="today">${esc(fLong.format(t))}${di >= 0 ? `, day ${di + 1} of 3` : ""}</p>`;
+  const brk = sessions.find(s => s.isBreak && s.start <= t && t < s.end);
+  if (brk) h += `<div class="banner">${esc(brk.title)} until ${hm(brk.end)}</div>`;
+
+  const live = sessions.filter(s => !s.isBreak && s.start <= t && t < s.end && visible(s, ms));
+  const longLive = live.filter(s => s.long), talks = live.filter(s => !s.long);
+  h += allDay(longLive, t, ms, fi);
+  if (talks.length) h += `<h2 class="sec">On now</h2>` + talks.map(s => card(s, t, ms, fi, { progress: true })).join("");
+
+  const later = sessions.filter(s => !s.isBreak && !s.long && s.start > t && visible(s, ms));
+  const today = later.filter(s => s.day === dk);
+  if (today.length) {
+    const seen = new Set(), next = [];
+    for (const s of today) if (!seen.has(s.room)) { seen.add(s.room); next.push(s); }
+    next.sort((a, b) => a.start - b.start);
+    h += `<h2 class="sec">Up next</h2>` + next.map(s => card(s, t, ms, fi, { soon: true })).join("");
+  } else if (!talks.length) {
+    const first = later[0];
+    if (first) {
+      const slot = later.filter(s => s.start - first.start < 5 * 60000);
+      h += `<h2 class="sec">Next up, ${esc(fShort.format(first.start))} at ${hm(first.start)}</h2>` + slot.map(s => card(s, t, ms, fi)).join("");
+    } else if (t > Date.parse("2026-09-26T17:00:00+10:00")) {
+      h += `<div class="empty"><h2>That's a wrap</h2><p>BSides Canberra 2026 is over. Your stars are still in Schedule.</p></div>`;
+    } else if (!longLive.length) {
+      h += emptyFiltered("Nothing coming up in your rooms");
+    }
+  }
+  return h;
+}
+
+function renderSchedule() {
+  const t = now(), ms = mineSet(), fi = friendIndex();
+  const list = sessions.filter(s => s.day === day);
+  let h = allDay(list.filter(s => s.long && visible(s, ms)), t, ms, fi);
+  const rest = list.filter(s => !s.long && visible(s, ms));
+  if (!rest.some(s => !s.isBreak)) return h + (h ? "" : emptyFiltered(starredOnly ? "No stars on this day yet" : "Nothing in these rooms today"));
+  let cur = null;
+  for (const s of rest) {
+    if (s.isBreak) { h += `<div class="brk">${hm(s.start)} ${esc(s.title)}</div>`; continue; }
+    if (s.start !== cur) { cur = s.start; h += `<h2 class="slot" data-start="${s.start}">${hm(s.start)}</h2>`; }
+    h += card(s, t, ms, fi);
+  }
+  return h;
+}
+
+function renderGroup() {
+  const srcLine = source.kind === "live" ? `Live from pretalx, updated ${hm(source.at)}.`
+    : source.kind === "cache" ? `Saved copy from ${esc(fShort.format(source.at))} at ${hm(source.at)}. The live feed isn't reachable right now.`
+    : "Built-in offline copy from 23 Sep. Some titles are shortened and talk details are missing until the live feed loads.";
+  const dataPanel = `<section class="panel"><h2>Schedule data</h2><p class="muted">${srcLine}</p><button class="btn ghost" type="button" data-act="refresh">Refresh schedule</button></section>`;
+
+  if (!groupId) {
+    return `<section class="panel"><h2>Plan with friends</h2>
+      <p class="muted">Start a group and share the link. Everyone's stars show up as initials on each talk, live.</p>
+      <label class="field">Your name<input id="nm" maxlength="24" autocomplete="nickname" value="${esc(myName)}" enterkeyhint="go"></label>
+      <button class="btn warm" type="button" data-act="create">Start a group</button></section>` + dataPanel;
+  }
+  const ids = Object.keys(group.members || {}).sort((a, b) => a === me ? -1 : b === me ? 1 : (group.members[a].name || "").localeCompare(group.members[b].name || ""));
+  const members = ids.map(id => {
+    const n = Object.keys(group.bookmarks?.[id] || {}).length;
+    return `<li>${badge(id)}<span class="n">${esc(group.members[id].name)}${id === me ? " (you)" : ""}</span><span class="c">${n} ${n === 1 ? "star" : "stars"}</span></li>`;
+  }).join("");
+  const sync = fbError ? "Can't reach the group service. Your stars are saved on this phone and will sync when you're back online."
+    : !fb ? "Connecting to your group…" : connected ? "Synced" : "Offline. Changes will sync when you reconnect.";
+  return `<section class="panel"><h2>Your group</h2><p class="muted">${sync}</p>
+      ${members ? `<ul class="members">${members}</ul>` : ""}
+      <button class="btn warm" type="button" data-act="share">Share invite link</button></section>
+    <section class="panel"><h2>Your name</h2>
+      <label class="field">Shown to your group<input id="nm" maxlength="24" autocomplete="nickname" value="${esc(myName)}" enterkeyhint="done"></label>
+      <button class="btn ghost" type="button" data-act="rename">Save name</button>
+      <button class="btn ghost" type="button" data-act="leave">Leave group</button></section>` + dataPanel;
+}
+
+function renderChrome() {
+  const st = $("#status");
+  const [cls, label] = source.kind === "live" ? ["ok", "Live"] : source.kind === "cache" ? ["warn", `Saved ${hm(source.at)}`] : ["warn", "Offline copy"];
+  st.innerHTML = `<i class="dot ${cls}"></i><span>${esc(label)}</span>`;
+  document.querySelectorAll("nav.tabs button").forEach(b => b.setAttribute("aria-current", b.dataset.view === view ? "page" : "false"));
+
+  const days = $("#days");
+  days.hidden = view !== "schedule";
+  days.innerHTML = DAYS.map((d, i) => {
+    const ms = Date.parse(`${d}T12:00:00+10:00`);
+    return `<button class="day" type="button" data-day="${d}" aria-pressed="${d === day}">${esc(fShort.format(ms).replace(/,/g, ""))}</button>`;
+  }).join("");
+
+  const pills = $("#pills");
+  pills.hidden = view === "group";
+  const present = [...new Set(sessions.filter(s => !s.isBreak).map(s => s.room))]
+    .sort((a, b) => (ROOM_ORDER.indexOf(a) + 1 || 99) - (ROOM_ORDER.indexOf(b) + 1 || 99));
+  pills.innerHTML =
+    `<button class="pill starpill" type="button" data-starred aria-pressed="${starredOnly}">${STAR}Starred</button>` +
+    `<button class="pill" type="button" data-room="" aria-pressed="${!rooms.length}">All rooms</button>` +
+    present.map(r => `<button class="pill" type="button" data-room="${esc(r)}" aria-pressed="${rooms.includes(r)}">${esc(SHORT[r] || r)}</button>`).join("");
+}
+
+function renderView() {
+  const el = $("#view");
+  // Keep focus on the name field if the group view re-renders while typing.
+  const typing = document.activeElement?.id === "nm" ? document.activeElement.value : null;
+  el.innerHTML = view === "now" ? renderNow() : view === "schedule" ? renderSchedule() : renderGroup();
+  if (typing !== null && $("#nm")) { const i = $("#nm"); i.value = typing; i.focus(); }
+}
+function render() { renderChrome(); renderView(); }
+
+function scrollToNow() {
+  if (view !== "schedule" || day !== dayOf(now())) { window.scrollTo(0, 0); return; }
+  const t = now(); let target = null;
+  document.querySelectorAll(".slot").forEach(h => { if (+h.dataset.start <= t) target = h; });
+  if (target) target.scrollIntoView({ block: "start" }); else window.scrollTo(0, 0);
+}
+
+/* ---------- Detail sheet ---------- */
+function paras(md) {
+  return esc(md).split(/\n{2,}/).map(p => p.trim()).filter(Boolean).map(p => `<p>${p.replace(/\n/g, "<br>")}</p>`).join("");
+}
+function openDetail(key) {
+  const s = byKey.get(key); if (!s) return;
+  const on = mineSet().has(key), fi = friendIndex();
+  const friends = [...(fi.get(key) || [])];
+  const going = friends.length ? `<div class="going">${friends.map(badge).join("")}<span>${esc(friends.map(id => group.members[id].name).join(", "))} ${friends.length === 1 ? "has" : "have"} starred this</span></div>` : "";
+  const body = (s.abstract ? paras(s.abstract) : "") + (s.desc && s.desc !== s.abstract ? paras(s.desc) : "");
+  const bios = s.bios.map(b => `<h3>About ${esc(b.name)}</h3>${paras(b.bio)}`).join("");
+  const missing = !body && source.kind !== "live" ? `<p class="muted">Talk details load when the live schedule is reachable.</p>` : "";
+  const link = okUrl(s.url) ? `<p><a href="${esc(s.url)}" target="_blank" rel="noopener">Open on pretalx</a></p>` : "";
+  $("#detailInner").innerHTML = `<button class="x" type="button" data-close aria-label="Close">×</button>
+    <div class="meta"><span>${esc(fShort.format(s.start))}, ${hm(s.start)} to ${hm(s.end)}</span><span class="room">${esc(s.room)}</span></div>
+    <h2>${esc(s.title)}</h2>
+    ${s.speakers.length ? `<p class="who">${esc(s.speakers.join(", "))}</p>` : ""}
+    ${going}
+    <div style="margin:14px 0 6px"><button class="btn ${on ? "ghost" : "warm"}" type="button" data-star="${key}" aria-pressed="${on}">${on ? "Remove star" : "Star this"}</button></div>
+    <div class="body">${body}${missing}${bios}${link}</div>`;
+  const d = $("#detail"); d.dataset.key = key;
+  if (!d.open) d.showModal();
+}
+
+/* =====================================================================
+   EVENTS
+   ===================================================================== */
+document.addEventListener("click", async e => {
+  const el = e.target.closest("[data-star],[data-open],[data-view],[data-day],[data-room],[data-starred],[data-act],[data-close],#status,#joinGo");
+  if (!el) {
+    if (e.target.matches("dialog.sheet")) e.target.close();   // tap on backdrop
+    return;
+  }
+  if (el.dataset.star) return toggleStar(el.dataset.star);
+  if (el.dataset.open) return openDetail(el.dataset.open);
+  if (el.dataset.view) { view = el.dataset.view; store.set("view", view); render(); scrollToNow(); return; }
+  if (el.dataset.day) { day = el.dataset.day; render(); scrollToNow(); return; }
+  if (el.hasAttribute("data-starred")) { starredOnly = !starredOnly; store.set("starred", starredOnly); return render(); }
+  if (el.hasAttribute("data-room")) {
+    const r = el.dataset.room;
+    if (!r) rooms = [];
+    else rooms = rooms.includes(r) ? rooms.filter(x => x !== r) : [...rooms, r];
+    store.set("rooms", rooms); return render();
+  }
+  if (el.hasAttribute("data-close")) return el.closest("dialog").close();
+  if (el.id === "status") { view = "group"; store.set("view", view); render(); window.scrollTo(0, 0); return; }
+  if (el.id === "joinGo") {
+    const gid = $("#join").dataset.gid;
+    if (await joinGroup(gid, $("#joinName").value)) { $("#join").close(); toast("You're in"); view = "group"; store.set("view", view); render(); }
+    return;
+  }
+  switch (el.dataset.act) {
+    case "clearfilters": rooms = []; starredOnly = false; store.set("rooms", rooms); store.set("starred", false); return render();
+    case "refresh": return loadLive(true);
+    case "create": if (await joinGroup(rid(10), $("#nm").value)) { toast("Group started. Share the link with your friends."); } return;
+    case "rename": {
+      const n = $("#nm").value.trim().slice(0, 24);
+      if (!n) return toast("Add your name first");
+      myName = n; store.set("name", n);
+      if (fb && groupId) fb.set(fb.r(`groups/${groupId}/members/${me}`), { name: n, t: Date.now() }).catch(() => {});
+      return toast("Name saved");
+    }
+    case "leave": return leaveGroup();
+    case "share": {
+      const url = `${location.origin}${location.pathname}#g=${groupId}`;
+      try {
+        if (navigator.share) await navigator.share({ title: "BSides CBR group", text: "Join my BSides Canberra schedule group", url });
+        else { await navigator.clipboard.writeText(url); toast("Invite link copied"); }
+      } catch (err) {
+        if (err?.name !== "AbortError") { try { await navigator.clipboard.writeText(url); toast("Invite link copied"); } catch { prompt("Copy this link", url); } }
+      }
+      return;
+    }
+  }
+});
+document.addEventListener("keydown", e => {
+  if ((e.key === "Enter" || e.key === " ") && e.target.dataset?.open) { e.preventDefault(); openDetail(e.target.dataset.open); }
+});
+document.addEventListener("toggle", e => {
+  if (e.target.matches?.("details.allday")) { allDayOpen = e.target.open; store.set("allday", allDayOpen); }
+}, true);
+
+/* Invite links look like .../#g=abc123xyz */
+function checkInvite() {
+  const m = /[#&]g=([a-z0-9]{8,16})/.exec(location.hash);
+  if (!m) return;
+  history.replaceState(null, "", location.pathname + location.search);
+  if (m[1] === groupId) { toast("You're already in this group"); return; }
+  const d = $("#join"); d.dataset.gid = m[1];
+  $("#joinName").value = myName;
+  d.showModal();
+  setTimeout(() => $("#joinName").focus(), 50);
+}
+window.addEventListener("hashchange", checkInvite);
+window.addEventListener("online", () => { loadLive(); if (groupId && !fb) connectGroup(); });
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible") { render(); if (source.kind !== "live" || Date.now() - source.at > REFRESH_MS) loadLive(); }
+});
+
+/* =====================================================================
+   START
+   ===================================================================== */
+const cached = store.get("cache", null);
+if (cached?.list?.length) setSessions(cached.list, { kind: "cache", at: cached.at });
+else setSessions(SNAP, { kind: "snapshot", at: null });
+scrollToNow();
+loadLive();
+if (groupId) connectGroup();
+checkInvite();
+setInterval(() => { if (document.visibilityState === "visible" && view !== "group") renderView(); }, 30000);
+setInterval(() => { if (document.visibilityState === "visible") loadLive(); }, REFRESH_MS);
+</script>
+</body>
+</html>
